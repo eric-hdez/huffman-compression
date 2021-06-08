@@ -39,14 +39,15 @@ Node *build_tree(uint64_t hist[static ALPHABET]) {
     return Root;
 }
 
-// subroutine for build_codes() that builds a unique code copy for each
-// leaf in the Huffman tree
+// SUBROUTINE FOR BUILD_CODES() :
+//
+// builds a unique code copy for each leaf in the Huffman tree
 //
 void build(Node *root, Code table[static ALPHABET], Code C) {
     uint8_t discard; // just to discard the pops
 
     // base case, Node is a leaf
-    if (!root->left && !root->right) {
+    if (is_leaf_node(root)) {
         table[root->symbol] = C;
         return;
     }

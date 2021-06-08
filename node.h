@@ -17,6 +17,8 @@ Node *node_create(uint8_t symbol, uint64_t frequency);
 
 void node_delete(Node **n);
 
+bool is_leaf_node(Node *n);
+
 Node *node_join(Node *left, Node *right);
 
 void node_print(Node *n);

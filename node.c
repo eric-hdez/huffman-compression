@@ -27,6 +27,12 @@ void node_delete(Node **pN) {
     }
 }
 
+// returns true if a node is a leaf node, false otherwise
+//
+bool is_leaf_node(Node *N) {
+    return N && !N->left && !N->right;
+}
+
 // joins two nodes, left and right, with a parent node w/
 // sym -> '$' and frequency left->freq + right->freq
 //

@@ -10,6 +10,9 @@
 
 #define BITS 8  // number of bits in a single byte
 
+uint64_t bytes_read = 0;
+uint64_t bytes_written = 0;
+
 static uint8_t bitbuff[BLOCK] = { 0 };
 static int bitindex = 0;
 
@@ -32,6 +35,7 @@ int read_bytes(int infile, uint8_t *buf, int nbytes) {
         buf += reads;
     }
 
+    bytes_read += total;
     return total;
 }
 
@@ -51,10 +55,11 @@ int write_bytes(int outfile, uint8_t *buf, int nbytes) {
         buf += writes;
     }
 
+    bytes_written += total;
     return total;
 }
 
-// reads bits from the input file and returns them into bit
+// reads bits from the input file and returns them into *bit
 //
 bool read_bit(int infile, uint8_t *bit) {
     static int end = -1;
@@ -94,6 +99,6 @@ void write_code(int outfile, Code *C) {
 // flush the remaining bytes containing Codes in the buffers
 //
 void flush_codes(int outfile) {
-    int code_bytes = !(codeindex % BITS) ? (codeindex / BITS) : (codeindex / BITS) + 1;
-    write_bytes(outfile, codebuff, code_bytes);
+    int to_write = !(codeindex % BITS) ? (codeindex / BITS) : (codeindex / BITS) + 1;
+    write_bytes(outfile, codebuff, to_write);
 }

@@ -3,6 +3,7 @@
 #include "io.h"
 
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -98,6 +99,14 @@ int main(int argc, char *argv[]) {
 
     // flush out the remainder of the buffered syms
     write_bytes(out, outbuff, decodes % BLOCK);
+
+    // print statistics if verbose enabled
+    if (verbose) {
+        double savings = 1.0 - ((double) bytes_read / (double) bytes_written);
+        fprintf(stdout, "Compressed file size  : %" PRIu64 " bytes\n", bytes_read);
+        fprintf(stdout, "Uncompressed file size: %" PRIu64 " bytes\n", bytes_written);
+        fprintf(stdout, "Space saving          : %.2lf%%\n", savings);
+    }
 
     // garbage collection time
     delete_tree(&HuffRoot);

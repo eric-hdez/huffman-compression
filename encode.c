@@ -3,6 +3,7 @@
 #include "io.h"
 
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -31,7 +32,7 @@ void hist_create(int infile, uint64_t hist[ALPHABET], uint16_t *unique_sym) {
 //
 void dump_tree(int outfile, Node *root) {
     // base case for a leaf Node
-    if (!root->left && !root->right) {
+    if (is_leaf_node(root)) {
         uint8_t buff[2] = { 'L', root->symbol };
         write_bytes(outfile, buff, 2);
         return;
@@ -99,10 +100,9 @@ int main(int argc, char *argv[]) {
     unique_syms += !histogram[ALPHABET - 1] ? 1 : 0;
     histogram[0]++, histogram[ALPHABET - 1]++;
 
-    // building the Huffman tree using the histogram
+    // building the Huffman tree and its codes
     Node *HuffRoot = build_tree(histogram);
 
-    // build the codes for the Huffman tree
     Code code_table[ALPHABET] = { 0 };
     build_codes(HuffRoot, code_table);
 
@@ -111,14 +111,14 @@ int main(int argc, char *argv[]) {
     fstat(in, &buff);
     fchmod(out, buff.st_mode);
 
-    // creating the outgoing header for output file
+    // creating the outgoing header for output file 
     Header outheader = { 0, 0, 0, 0 };
     outheader.magic = MAGIC;
     outheader.permissions = buff.st_mode;
     outheader.tree_size = 3 * unique_syms - 1;
     outheader.file_size = buff.st_size;
 
-    // writing the header to the output file and dumping the tree
+    // writing the header and dumping tree to output file
     write_bytes(out, (uint8_t *) &outheader, sizeof(Header));
     dump_tree(out, HuffRoot);
 
@@ -134,6 +134,14 @@ int main(int argc, char *argv[]) {
 
     // flush any remaining codes out
     flush_codes(out);
+
+    // print stats if verbose is specified
+    if (verbose) {
+        double savings = 1.0 - ((double) bytes_written / (double) bytes_read);
+        fprintf(stdout, "Uncompressed file size: %" PRIu64 " bytes\n", bytes_read);
+        fprintf(stdout, "Compressed file size  : %" PRIu64 " bytes\n", bytes_written);
+        fprintf(stdout, "Space saving          : %.2lf%%\n", savings);
+    }
 
     // take the garbage out
     delete_tree(&HuffRoot);

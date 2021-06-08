@@ -85,7 +85,9 @@ uint32_t pq_size(PriorityQueue *PQ) {
 // Operation Functions -------------------------------------------------------------------
 
 // SUBROUTINE FOR PRIORITYQUEUE'S ENQUEUE() :
-// inserts an element into a min heap by swapping Nodes iteratively
+//
+// inserts an element into a min heap by swapping Nodes iteratively to
+// prevserve min heap properties
 //
 void min_heap_insert(PriorityQueue *PQ, Node *N) {
     uint32_t i = PQ->size + 1;
@@ -119,12 +121,13 @@ bool enqueue(PriorityQueue *PQ, Node *N) {
 }
 
 // SUBROUTINE FOR PRIORITYQUEUE'S DEQUEUE() :
-// fixes a heap, shifting elements down or up the minimum heap
+// fixes a heap, shifting elements down or up the minimum heap after
+// extracting the min-node
 //
 void min_heapify(PriorityQueue *PQ, uint32_t i) {
-    uint32_t lc = i * 2; // left child of heap[i]'s index
-    uint32_t rc = i * 2 + 1; // right child of heap[i]'s index
-    uint32_t smallest = 0; // 0 is reserved in the list, denotes nothing
+    uint32_t lc = i * 2;      // left child of heap[i]
+    uint32_t rc = i * 2 + 1;  // right child of heap[i]
+    uint32_t smallest = 0;    // 0 is reserved to denote nothing
 
     if (lc <= PQ->size && PQ->heap[lc]->frequency < PQ->heap[i]->frequency) {
         smallest = lc;
@@ -142,7 +145,8 @@ void min_heapify(PriorityQueue *PQ, uint32_t i) {
     }
 }
 
-// dequeue's the Node with highest off of the PriorityQueue
+// dequeue's the Node with highest priority off of a PriorityQueue,
+// returns true if successful
 //
 bool dequeue(PriorityQueue *PQ, Node **N) {
     if (!PQ || !N || pq_empty(PQ)) {
