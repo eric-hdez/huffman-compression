@@ -83,8 +83,6 @@ void write_code(int outfile, Code *C) {
     for (uint32_t bit = 0; bit < code_size(C); bit++) {
         if (get_bit(C->bits, bit)) {
             set_bit(codebuff, codeindex);
-        } else {
-            clr_bit(codebuff, codeindex);
         }
 
         codeindex = (codeindex + 1) % (BITS * BLOCK);
