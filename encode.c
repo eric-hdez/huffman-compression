@@ -1,3 +1,4 @@
+#include "error.h"
 #include "header.h"
 #include "huffman.h"
 #include "io.h"
@@ -9,21 +10,21 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-uint8_t buffer[BLOCK] = { 0 };
+#define OPTIONS "hi:o:v"
 
 // creates a histogram of the symbols present in an input file to be compressed
 //
 void hist_create(int infile, uint64_t hist[ALPHABET], uint16_t *unique_sym) {
-    int bytes;
-    uint8_t buff[BLOCK] = { 0 };
+    uint8_t buffer[BLOCK] = { 0 };
+    ssize_t nbytes = 0;
 
-    while ((bytes = read_bytes(infile, buff, BLOCK)) > 0) {
-        for (int sym = 0; sym < bytes; sym++) {
-            if (!hist[buff[sym]]) {
+    while ((nbytes = read_bytes(infile, buffer, BLOCK)) > 0) {
+        for (int sym = 0; sym < nbytes; sym++) {
+            if (!hist[buffer[sym]]) {
                 *unique_sym += 1;
             }
 
-            hist[buff[sym]] += 1;
+            hist[buffer[sym]] += 1;
         }
     }
 }
@@ -31,10 +32,10 @@ void hist_create(int infile, uint64_t hist[ALPHABET], uint16_t *unique_sym) {
 // dumps the encoded Huffman tree into the outfile
 //
 void dump_tree(int outfile, Node *root) {
-    // base case for a leaf Node
+    // base case for a leaf node
     if (is_leaf_node(root)) {
-        uint8_t buff[2] = { 'L', root->symbol };
-        write_bytes(outfile, buff, 2);
+        uint8_t buffer[] = { 'L', root->symbol };
+        write_bytes(outfile, buffer, 2);
         return;
     }
 
@@ -43,8 +44,23 @@ void dump_tree(int outfile, Node *root) {
     dump_tree(outfile, root->right);
 
     // internal Node handle case
-    uint8_t buff[1] = { 'I' };
-    write_bytes(outfile, buff, 1);
+    uint8_t buffer[] = { 'I' };
+    write_bytes(outfile, buffer, 1);
+}
+
+// prints the program usage menu
+//
+void print_usage(FILE *stream, char *bin) {
+    fprintf(stream, 
+        "USAGE\n"
+        "  %s [-h] [-i infile] [-o outfile]\n"
+        "\n"
+        "OPTIONS\n"
+        "  -h             Program help menu\n"
+        "  -v             Print compression statisitcs\n"
+        "  -i infile      Input file for compression\n"
+        "  -o outfile     Output file for compressed file\n",
+        bin);
 }
 
 // main function for Huffman encoding
@@ -52,41 +68,27 @@ int main(int argc, char *argv[]) {
     int options;
 
     // default i/o and verbose options
-    int in = STDIN_FILENO;
-    int out = STDOUT_FILENO;
+    int fdin = STDIN_FILENO;
+    int fdout = STDOUT_FILENO;
     bool verbose = false;
 
-    while ((options = getopt(argc, argv, "hi:o:v")) != -1) {
+    while ((options = getopt(argc, argv, OPTIONS)) != -1) {
         switch (options) {
-
-        case 'h': {
-            fprintf(stdout, "Usage: %s -i <infile> -o <outfile> -v (optional stats)\n", argv[0]);
-            exit(EXIT_SUCCESS);
-
+        case 'h': print_usage(stdout, argv[0]); break;
+        case 'i': 
+            if ((fdin = open(optarg, O_RDONLY)) == -1) {
+                close(fdout);
+                ERROR(EXIT_FAILURE, "failed to open infile for reading");
+            } 
             break;
-        }
-        case 'i': {
-            if ((in = open(optarg, O_RDONLY)) == -1) {
-                fprintf(stderr, "%s: failed to open file or file does not exist.\n", optarg);
-                close(out);
-                exit(EXIT_FAILURE);
-            }
-
+        case 'o': 
+            if ((fdout = open(optarg, O_WRONLY | O_CREAT | O_TRUNC)) == -1) {
+                close(fdin);
+                ERROR(EXIT_FAILURE, "failed to open outfile for writing");
+            }; 
             break;
-        }
-        case 'o': {
-            if ((out = open(optarg, O_WRONLY | O_CREAT | O_TRUNC)) == -1) {
-                fprintf(stderr, "%s: failed to open file or create it.\n", optarg);
-                close(in);
-                exit(EXIT_FAILURE);
-            }
-
-            break;
-        }
-        case 'v': {
-            verbose = true;
-            break;
-        }
+        case 'v': verbose = true; break;
+        default: print_usage(stderr, argv[0]); break;
         }
     }
 
@@ -94,7 +96,7 @@ int main(int argc, char *argv[]) {
     uint64_t histogram[ALPHABET] = { 0 };
     uint16_t unique_syms = 0;
 
-    hist_create(in, histogram, &unique_syms);
+    hist_create(fdin, histogram, &unique_syms);
 
     unique_syms += !histogram[0] ? 1 : 0;
     unique_syms += !histogram[ALPHABET - 1] ? 1 : 0;
@@ -108,32 +110,34 @@ int main(int argc, char *argv[]) {
 
     // grabbing infile permissions and setting them for outfile
     struct stat buff;
-    fstat(in, &buff);
-    fchmod(out, buff.st_mode);
+    fstat(fdin, &buff);
+    fchmod(fdout, buff.st_mode);
 
     // creating the outgoing header for output file 
-    Header outheader = { 0, 0, 0, 0 };
-    outheader.magic = MAGIC;
-    outheader.permissions = buff.st_mode;
-    outheader.tree_size = 3 * unique_syms - 1;
-    outheader.file_size = buff.st_size;
+    Header outheader = {
+        .magic = MAGIC,
+        .permissions = buff.st_mode,
+        .tree_size = 3 * unique_syms - 1,
+        .file_size = buff.st_size
+    };
 
     // writing the header and dumping tree to output file
-    write_bytes(out, (uint8_t *) &outheader, sizeof(Header));
-    dump_tree(out, HuffRoot);
+    write_bytes(fdout, (uint8_t *) &outheader, sizeof(Header));
+    dump_tree(fdout, HuffRoot);
 
     // now, write out the codes to the output file
-    lseek(in, 0, SEEK_SET);
-    int bytes = 0;
+    lseek(fdin, 0, SEEK_SET);
+    uint8_t buffer[BLOCK] = { 0 };
+    ssize_t bytes = 0;
 
-    while ((bytes = read_bytes(in, buffer, BLOCK)) > 0) {
+    while ((bytes = read_bytes(fdin, buffer, BLOCK)) > 0) {
         for (int sym = 0; sym < bytes; sym++) {
-            write_code(out, &code_table[buffer[sym]]);
+            write_code(fdout, &code_table[buffer[sym]]);
         }
     }
 
     // flush any remaining codes out
-    flush_codes(out);
+    flush_codes(fdout);
 
     // print stats if verbose is specified
     if (verbose) {
@@ -145,8 +149,8 @@ int main(int argc, char *argv[]) {
 
     // take the garbage out
     delete_tree(&HuffRoot);
-    close(in);
-    close(out);
+    close(fdin);
+    close(fdout);
 
     return 0;
 }

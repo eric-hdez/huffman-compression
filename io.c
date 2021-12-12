@@ -1,5 +1,6 @@
 #include "io.h"
 
+#include "error.h"
 #include "header.h"
 #include "util.h"
 
@@ -8,7 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define BITS 8  // number of bits in a single byte
+#define BITS_PER_BYTE 8  // number of bits in a single byte
 
 uint64_t bytes_read = 0;
 uint64_t bytes_written = 0;
@@ -23,43 +24,43 @@ static int codeindex = 0;
 // returns number of bytes read
 //
 int read_bytes(int infile, uint8_t *buf, int nbytes) {
-    int reads = -1, total = 0;
+    int rbytes = -1, total = 0;
 
-    while ((total != nbytes) && (reads != 0)) {
-        if ((reads = read(infile, buf, nbytes)) == -1) {
-            fprintf(stderr, "[ERR : read_bytes()] could not read from infile\n");
-            exit(EXIT_FAILURE);
+    while (total != nbytes && rbytes != 0) {
+        rbytes = read(infile, buf + total, nbytes - total);
+        if (rbytes == -1) {
+            WARN("failed to read bytes from the infile");
+            continue;
         }
 
-        total += reads;
-        buf += reads;
+        total += rbytes;
     }
 
     bytes_read += total;
     return total;
 }
 
-// performs wri)es from buffered input using the write()
+// performs writes from buffered input using the write()
 // system call, returns number of bytes written
 //
 int write_bytes(int outfile, uint8_t *buf, int nbytes) {
-    int writes = -1, total = 0;
+    int wbytes = -1, total = 0;
 
-    while ((total != nbytes) && (writes != 0)) {
-        if ((writes = write(outfile, buf, nbytes)) == -1) {
-            fprintf(stderr, "[ERR : write_bytes()] could not write to outfile.\n");
-            exit(EXIT_FAILURE);
+    while (total != nbytes && wbytes != 0) {
+        wbytes = write(outfile, buf + total, nbytes - total);
+        if (wbytes == -1) {
+            WARN("failed to write bytes to the outfile.\n");
+            continue;
         }
 
-        total += writes;
-        buf += writes;
+        total += wbytes;
     }
 
     bytes_written += total;
     return total;
 }
 
-// reads bits from the input file and returns them into *bit
+// reads bits from an input file and returns them into *bit
 //
 bool read_bit(int infile, uint8_t *bit) {
     static int end = -1;
@@ -72,9 +73,9 @@ bool read_bit(int infile, uint8_t *bit) {
     }
 
     *bit = get_bit(bitbuff, bitindex);
-    bitindex = (bitindex + 1) % (BITS * BLOCK);
+    bitindex = (bitindex + 1) % (BITS_PER_BYTE * BLOCK);
 
-    return (bitindex == (BITS * end)) ? false : true;
+    return bitindex == (BITS_PER_BYTE * end) ? true : false;
 }
 
 // writes a full buffer of Codes out to an output file
@@ -85,7 +86,7 @@ void write_code(int outfile, Code *C) {
             set_bit(codebuff, codeindex);
         }
 
-        codeindex = (codeindex + 1) % (BITS * BLOCK);
+        codeindex = (codeindex + 1) % (BITS_PER_BYTE * BLOCK);
 
         if (!codeindex) {
             write_bytes(outfile, codebuff, BLOCK);
@@ -94,9 +95,8 @@ void write_code(int outfile, Code *C) {
     }
 }
 
-// flush the remaining bytes containing Codes in the buffers
+// flushes the remaining bytes containing Codes in the buffers
 //
 void flush_codes(int outfile) {
-    int to_write = !(codeindex % BITS) ? (codeindex / BITS) : (codeindex / BITS) + 1;
-    write_bytes(outfile, codebuff, to_write);
+    write_bytes(outfile, codebuff, bytes(codeindex));
 }

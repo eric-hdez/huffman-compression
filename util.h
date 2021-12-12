@@ -15,4 +15,8 @@ static inline void clr_bit(uint8_t array[], uint32_t bit) {
     array[bit / 8] &= ~(1 << (bit % 8));
 }
 
+static inline int bytes(int bits) {
+    return !(bits % 8) ? bits / 8 : bits / 8 + 1;
+}
+
 #endif

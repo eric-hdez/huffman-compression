@@ -3,7 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define ROOT 1 // root index, 0 reserved to denote NULL children / no parent
+#define NIL        0  // denotes nothing
+#define ROOT       1  // denotes the root index
+#define parent(i)  i / 2
+#define left(i)    i * 2
+#define right(i)   i * 2 + 1
 
 // Struct & Members Defn -----------------------------------------------------------------
 
@@ -51,7 +55,10 @@ void pq_delete(PriorityQueue **PQ) {
     if (PQ && *PQ) {
         if ((*PQ)->heap) {
             for (uint32_t n = ROOT; n <= (*PQ)->size; n++) {
-                node_delete(&(*PQ)->heap[n]);
+                if ((*PQ)->heap[n]) {
+                    node_delete(&(*PQ)->heap[n]);
+                }
+                
             }
         }
 
@@ -91,13 +98,12 @@ uint32_t pq_size(PriorityQueue *PQ) {
 //
 void min_heap_insert(PriorityQueue *PQ, Node *N) {
     uint32_t i = PQ->size + 1;
-    uint32_t parent = i / 2;
 
     PQ->heap[i] = N;
 
-    while (i > ROOT && PQ->heap[parent]->frequency > PQ->heap[i]->frequency) {
-        swap(&PQ->heap[parent], &PQ->heap[i]);
-        i = parent, parent = i / 2;
+    while (i > ROOT && PQ->heap[parent(i)]->frequency > PQ->heap[i]->frequency) {
+        swap(&PQ->heap[parent(i)], &PQ->heap[i]);
+        i = parent(i);
     }
 }
 
@@ -125,9 +131,9 @@ bool enqueue(PriorityQueue *PQ, Node *N) {
 // extracting the min-node
 //
 void min_heapify(PriorityQueue *PQ, uint32_t i) {
-    uint32_t lc = i * 2;      // left child of heap[i]
-    uint32_t rc = i * 2 + 1;  // right child of heap[i]
-    uint32_t smallest = 0;    // 0 is reserved to denote nothing
+    uint32_t lc = left(i);  // left child of heap[i]
+    uint32_t rc = right(i);  // right child of heap[i]
+    uint32_t smallest = NIL;
 
     if (lc <= PQ->size && PQ->heap[lc]->frequency < PQ->heap[i]->frequency) {
         smallest = lc;
@@ -170,9 +176,9 @@ bool dequeue(PriorityQueue *PQ, Node **N) {
 void pq_print(PriorityQueue *PQ) {
     for (uint32_t n = ROOT; n <= PQ->size; n++) {
 
-        uint32_t left = (n * 2) < PQ->size ? (n * 2) : 0;
-        uint32_t right = (n * 2 + 1) < PQ->size ? (n * 2 + 1) : 0;
-        uint32_t parent = n / 2;
+        uint32_t left = left(n) < PQ->size ? left(n) : 0;
+        uint32_t right = right(n) < PQ->size ? right(n) : 0;
+        uint32_t parent = parent(n);
 
         printf("%d : {parent: %d, left: %d, right: %d}\n", n, parent, left, right);
     }

@@ -23,13 +23,12 @@ Node *build_tree(uint64_t hist[static ALPHABET]) {
 
     // build Huffman tree from the PriorityQueue
     while (pq_size(PQ) > 1) {
-        Node *Left, *Right, *Join;
+        Node *Left, *Right;
 
         dequeue(PQ, &Left);
         dequeue(PQ, &Right);
 
-        Join = node_join(Left, Right);
-        enqueue(PQ, Join);
+        enqueue(PQ, node_join(Left, Right));
     }
 
     // dequeue and return the Huffman tree root
@@ -90,13 +89,12 @@ Node *rebuild_tree(uint16_t nbytes, uint8_t tree_dump[static nbytes]) {
         }
 
         if (tree_dump[sym] == 'I') {
-            Node *Right, *Left, *Join;
+            Node *Right, *Left;
 
             stack_pop(S, &Right);
             stack_pop(S, &Left);
 
-            Join = node_join(Left, Right);
-            stack_push(S, Join);
+            stack_push(S, node_join(Left, Right));
         }
     }
 

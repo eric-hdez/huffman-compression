@@ -49,8 +49,6 @@ Node *node_join(Node *left, Node *right) {
 //
 void node_print(Node *N) {
     if (N) {
-        node_print(N->left);
         printf("%c ", N->symbol);
-        node_print(N->right);
     }
 }
